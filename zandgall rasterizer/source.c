@@ -17,12 +17,12 @@ void draw_func(int x, int y, float z, vec4 in) {
     // If the current pixel (x, y) was drawn this frame, and is closer to the camera, don't draw over it
     if(y <= 0 || y > HEIGHT || x < 0 || x >= WIDTH)
         return;
-    if(frame_buff[y * WIDTH + x] == frame && depth_buff[y * WIDTH + x] < z)
+    if(frame_buff[(HEIGHT-y) * WIDTH + x] == frame && depth_buff[(HEIGHT-y) * WIDTH + x] < z)
         return;
     Uint32* targ = (Uint32*)((Uint8*)surf->pixels + (HEIGHT-y) * surf->pitch + x * surf->format->BytesPerPixel);
-    *targ = (((Uint8)(fminf(fmaxf(in.x, 0), 1)*255)) << 16) + (((Uint8)(fminf(fmaxf(in.y, 0), 1)*255)) << 8) + (Uint8)(fminf(fmaxf(in.z, 0), 1)*255) + (255<24);
-    frame_buff[y * WIDTH + x] = frame;
-    depth_buff[y * WIDTH + x] = z;
+    *targ = (((Uint8)(fminf(fmaxf(in.x, 0), 1)*255)) << 16) + (((Uint8)(fminf(fmaxf(in.y, 0), 1)*255)) << 8) + (Uint8)(fminf(fmaxf(in.z, 0), 1)*255) + (255<<24);
+    frame_buff[(HEIGHT-y) * WIDTH + x] = frame;
+    depth_buff[(HEIGHT-y) * WIDTH + x] = z;
 }
 
 int main() {
