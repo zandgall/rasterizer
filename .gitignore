@@ -1,3 +1,11 @@
 /.vscode
+/zandgall rasterizer/.vscode
+/zandgall rasterizer/source
+/zandgall rasterizer/build
 /zandgall rasterizer checkpoint
 /zandgall rasterizer checkpoint 2
+/zandgall rasterizer opencl
+/OpenCL/build
+/OpenCL/source
+/opencl rasterizer/build
+/opencl rasterizer/source
