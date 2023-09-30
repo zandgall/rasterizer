@@ -11,15 +11,17 @@
 #define HEIGHT 512
 #endif
 
+#define LARGE (1.0e10)
+
 void (*tri_draw_func)(int, int, float, vec4);
 
-void shade_triangle(const struct vertice* const args, vec4 (*fs)(const vertice* const, const uniforms), const uniforms f_uni) { 
+void shade_triangle(const struct vertex* const args, vec4 (*fs)(const vertex* const, const uniforms), const uniforms f_uni) { 
     /**
      * args can be given to us in any order here. What we need to do, is find the top, bottom, and middle points (in terms of y).
      * It doesn't have to be in terms of y, but that's what we chose, arbitrarily
-     * We will use pointers to each vertice, as there is no new data being created. We're just sorting points
+     * We will use pointers to each vertex, as there is no new data being created. We're just sorting points
     */
-    const struct vertice* t, * m, * b;
+    const struct vertex* t, * m, * b;
 
     // Calculate screenspace y-position of each arg, in order to compare them and find the top, middle, and bottom point
     const float a0y = args[0].pos.y / args[0].pos.w;
@@ -46,26 +48,38 @@ void shade_triangle(const struct vertice* const args, vec4 (*fs)(const vertice* 
 
     // If middle and bottom aren't set correctly yet, swap them
     if (m->pos.y/m->pos.w > b->pos.y/b->pos.w) {
-        const struct vertice* _ = b;
+        const struct vertex* _ = b;
         b = m;
         m = _;
     }
 
     /**
-     * We now have the top, middle and bottom points.
+     * We now have the top, middle, and bottom points.
      * We will now create new vertices to represent the screen position.
      * We only need 6 values, the on-screen (x, y) positions of each of the 3 points
      * We will store as a float because we do exclusively floating point math with them
     */
 
     const float st_x = floorf(WIDTH * 0.5 * (t->pos.x/t->pos.w+1));
+    if(st_x <= -LARGE || st_x >= LARGE) // Check to prevent infinite loops
+        return;
     const float st_y = floorf(HEIGHT * 0.5 * (t->pos.y/t->pos.w + 1));
+    if(st_y <= -LARGE || st_y >= LARGE) // Check to prevent infinite loops
+        return;
 
     const float sm_x = floorf(WIDTH * 0.5 * (m->pos.x/m->pos.w + 1));
+    if(sm_x <= -LARGE || sm_x >= LARGE) // Check to prevent infinite loops
+        return;
     const float sm_y = floorf(HEIGHT * 0.5 * (m->pos.y/m->pos.w + 1));
-
+    if(sm_y <= -LARGE || sm_y >= LARGE) // Check to prevent infinite loops
+        return;
+        
     const float sb_x = floorf(WIDTH * 0.5 * (b->pos.x/b->pos.w + 1));
+    if(sb_x <= -LARGE || sb_x >= LARGE) // Check to prevent infinite loops
+        return;
     const float sb_y = floorf(HEIGHT * 0.5 * (b->pos.y/b->pos.w + 1));
+    if(sb_y <= -LARGE || sb_y >= LARGE) // Check to prevent infinite loops
+        return;
 
     /**
      * We use barycentric coordinates to aide in shading our triangles.
@@ -101,7 +115,7 @@ void shade_triangle(const struct vertice* const args, vec4 (*fs)(const vertice* 
     /**
      * In order to scan from left to right, we need to know which ant is to the left, and which is to the right.
      * We could call min() every loop, but we camiddleost ant
-     * If the slope from top->middle is greater than the slope from top->middle, then the left-most ant is the one that goes from top->middle (switch_ant)
+     * If the slope from top->bottom is greater than the slope from top->middle, then the left-most ant is the one that goes from top->middle (switch_ant)
     */
     float* minm = &straight_ant;
     if (tb > tm)
@@ -116,12 +130,23 @@ void shade_triangle(const struct vertice* const args, vec4 (*fs)(const vertice* 
     if (tm == INFINITY || tm == -INFINITY) // Flat top
         switch_ant = sm_x;
 
+    // Declaring and allocating all our attributes
+    struct vertex current_vertice;
+    current_vertice.vec2_n = t->vec2_n;
+    current_vertice.vec2_a = (vec2*)malloc(t->vec2_n*sizeof(vec2));
+    current_vertice.vec3_n = t->vec3_n;
+    current_vertice.vec3_a = (vec3*)malloc(t->vec3_n*sizeof(vec3));
+    current_vertice.vec4_n = t->vec4_n;
+    current_vertice.vec4_a = (vec4*)malloc(t->vec4_n*sizeof(vec4));
+
     // The y-loop. Loop from y = st_y, to sm_y. Along the way, increment straight and switch ant by their respective slopes
     for (int y = st_y; y < sm_y; y++, straight_ant += tb, switch_ant += tm)
-        if (y >= 0 && y < HEIGHT) { // only procede if inside the screen. (In case of clip failure, or rounding errors that cause a point to exist off screen)
+        if (y >= 0 && y < HEIGHT) { // only proceed if inside the screen. (In case of clip failure, or rounding errors that cause a point to exist off screen)
+            // The reason we allow "y = HEIGHT" to pass through, is because we end up flipping the coordinates vertically, and y=HEIGHT actually becomes y=0
+
             // The x-loop, loop from the minimum x, to either straight_ant or switch_ant (continue until x is smaller than neither of them)
             for (int x = *minm; x < straight_ant || x < switch_ant; x++)
-                if (x >= 0 && x < WIDTH) { // only procede if inside the screen
+                if (x >= 0 && x < WIDTH) { // only proceed if inside the screen
                     // Calculate UVW (barycentric) coordinates.
                     float u = ((sb_x - x) * (sm_y - y) - (sb_y - y) * (sm_x - x)) * inv_area;
                     float v = ((sb_x - st_x) * (y - st_y) - (sb_y - st_y) * (x - st_x)) * inv_area;
@@ -130,36 +155,24 @@ void shade_triangle(const struct vertice* const args, vec4 (*fs)(const vertice* 
                     // Calculate current point's distance from the "camera"
                     float d = 1.f / (u / t->pos.w + v / m->pos.w + w / b->pos.w);
 
-                    // Get a physical representation of the on-screen point, interpolating vertice attributes for shading
-                    struct vertice current_vertice;
-                    current_vertice.pos = v_scale(v_add(v_add(v_scale(t->pos, u / t->pos.w), v_scale(m->pos, v / m->pos.w)), v_scale(b->pos, w / b->pos.w)), d);
+                    // Get a physical representation of the on-screen point, interpolating vertex attributes for shading
+                    current_vertice.pos = v4scale(v4add(v4add(v4scale(t->pos, u / t->pos.w), v4scale(m->pos, v / m->pos.w)), v4scale(b->pos, w / b->pos.w)), d);
                     
-                    current_vertice.vec2_n = t->vec2_n;
-                    current_vertice.vec2_a = (vec2*)malloc(t->vec2_n*sizeof(vec2));
                     for(int i = 0; i < t->vec2_n; i++)
-                        current_vertice.vec2_a[i] = v_scale2(v_add2(v_add2(v_scale2(t->vec2_a[i], u / t->pos.w), v_scale2(m->vec2_a[i], v / m->pos.w)), v_scale2(b->vec2_a[i], w / b->pos.w)), d);
+                        current_vertice.vec2_a[i] = v2scale(v2add(v2add(v2scale(t->vec2_a[i], u / t->pos.w), v2scale(m->vec2_a[i], v / m->pos.w)), v2scale(b->vec2_a[i], w / b->pos.w)), d);
 
-                    current_vertice.vec3_n = t->vec3_n;
-                    current_vertice.vec3_a = (vec3*)malloc(t->vec3_n*sizeof(vec3));
                     for(int i = 0; i < t->vec3_n; i++)
-                        current_vertice.vec3_a[i] = v_scale3(v_add3(v_add3(v_scale3(t->vec3_a[i], u / t->pos.w), v_scale3(m->vec3_a[i], v / m->pos.w)), v_scale3(b->vec3_a[i], w / b->pos.w)), d);
+                        current_vertice.vec3_a[i] = v3scale(v3add(v3add(v3scale(t->vec3_a[i], u / t->pos.w), v3scale(m->vec3_a[i], v / m->pos.w)), v3scale(b->vec3_a[i], w / b->pos.w)), d);
                     
-                    current_vertice.vec4_n = t->vec4_n;
-                    current_vertice.vec4_a = (vec4*)malloc(t->vec4_n*sizeof(vec4));
                     for(int i = 0; i < t->vec4_n; i++)
-                        current_vertice.vec4_a[i] = v_scale(v_add(v_add(v_scale(t->vec4_a[i], u / t->pos.w), v_scale(m->vec4_a[i], v / m->pos.w)), v_scale(b->vec4_a[i], w / b->pos.w)), d);
+                        current_vertice.vec4_a[i] = v4scale(v4add(v4add(v4scale(t->vec4_a[i], u / t->pos.w), v4scale(m->vec4_a[i], v / m->pos.w)), v4scale(b->vec4_a[i], w / b->pos.w)), d);
 
-                    // Call the given shade function with the interpolated vertice attributes, x and y screen position, and draw function
-                    // shade(&current_vertice, x, y, current_vertice.pos.z/current_vertice.pos.w, draw);
+                    // Call the given shade function with the interpolated vertex attributes, x and y screen position, and draw function
                     tri_draw_func(x, y, current_vertice.pos.z / current_vertice.pos.w, fs(&current_vertice, f_uni));
-
-                    free(current_vertice.vec2_a);
-                    free(current_vertice.vec3_a);
-                    free(current_vertice.vec4_a);
                 }
         }
 
-    // See previous loop. Only difference hear is y looping from sm_y to sb_y, and switch_ant being incremented by mb
+    // See previous loop. Only difference here is y looping from sm_y to sb_y, and switch_ant being incremented by mb.
     for (int y = sm_y; y < sb_y; y++, straight_ant += tb, switch_ant += mb)
         if (y >= 0 && y < HEIGHT) {
             for (int x = *minm; x < straight_ant || x < switch_ant; x++)
@@ -169,29 +182,21 @@ void shade_triangle(const struct vertice* const args, vec4 (*fs)(const vertice* 
                     float w = ((x - st_x) * (sm_y - st_y) - (y - st_y) * (sm_x - st_x)) * inv_area;
                     float d = 1.f / (u / t->pos.w + v / m->pos.w + w / b->pos.w);
 
-                    struct vertice current_vertice;
-                    current_vertice.pos = v_scale(v_add(v_add(v_scale(t->pos, u / t->pos.w), v_scale(m->pos, v / m->pos.w)), v_scale(b->pos, w / b->pos.w)), d);
-                    current_vertice.vec2_n = t->vec2_n;
-                    current_vertice.vec2_a = (vec2*)malloc(t->vec2_n*sizeof(vec2));
+                    current_vertice.pos = v4scale(v4add(v4add(v4scale(t->pos, u / t->pos.w), v4scale(m->pos, v / m->pos.w)), v4scale(b->pos, w / b->pos.w)), d);
                     for(int i = 0; i < t->vec2_n; i++)
-                        current_vertice.vec2_a[i] = v_scale2(v_add2(v_add2(v_scale2(t->vec2_a[i], u / t->pos.w), v_scale2(m->vec2_a[i], v / m->pos.w)), v_scale2(b->vec2_a[i], w / b->pos.w)), d);
+                        current_vertice.vec2_a[i] = v2scale(v2add(v2add(v2scale(t->vec2_a[i], u / t->pos.w), v2scale(m->vec2_a[i], v / m->pos.w)), v2scale(b->vec2_a[i], w / b->pos.w)), d);
 
-                    current_vertice.vec3_n = t->vec3_n;
-                    current_vertice.vec3_a = (vec3*)malloc(t->vec3_n*sizeof(vec3));
                     for(int i = 0; i < t->vec3_n; i++)
-                        current_vertice.vec3_a[i] = v_scale3(v_add3(v_add3(v_scale3(t->vec3_a[i], u / t->pos.w), v_scale3(m->vec3_a[i], v / m->pos.w)), v_scale3(b->vec3_a[i], w / b->pos.w)), d);
+                        current_vertice.vec3_a[i] = v3scale(v3add(v3add(v3scale(t->vec3_a[i], u / t->pos.w), v3scale(m->vec3_a[i], v / m->pos.w)), v3scale(b->vec3_a[i], w / b->pos.w)), d);
                     
-                    current_vertice.vec4_n = t->vec4_n;
-                    current_vertice.vec4_a = (vec4*)malloc(t->vec4_n*sizeof(vec4));
                     for(int i = 0; i < t->vec4_n; i++)
-                        current_vertice.vec4_a[i] = v_scale(v_add(v_add(v_scale(t->vec4_a[i], u / t->pos.w), v_scale(m->vec4_a[i], v / m->pos.w)), v_scale(b->vec4_a[i], w / b->pos.w)), d);
+                        current_vertice.vec4_a[i] = v4scale(v4add(v4add(v4scale(t->vec4_a[i], u / t->pos.w), v4scale(m->vec4_a[i], v / m->pos.w)), v4scale(b->vec4_a[i], w / b->pos.w)), d);
                     
-                    // shade(&current_vertice, x, y, current_vertice.pos.z/current_vertice.pos.w, draw);
                     tri_draw_func(x, y, current_vertice.pos.z / current_vertice.pos.w, fs(&current_vertice, f_uni));
-
-                    free(current_vertice.vec2_a);
-                    free(current_vertice.vec3_a);
-                    free(current_vertice.vec4_a);
                 }
         }
+    
+    free(current_vertice.vec2_a);
+    free(current_vertice.vec3_a);
+    free(current_vertice.vec4_a);
 }

@@ -4,19 +4,19 @@
 
 char ZG_DISABLE_CULLING = 0;
 
-void shade_clip_tri(const struct vertice* const args, vec4 (*fs)(const struct vertice* const, const uniforms), const uniforms);
+void shade_clip_tri(const struct vertex* const args, vec4 (*fs)(const struct vertex* const, const uniforms), const uniforms);
 
-unsigned char shade_clip_plane_augment(const struct vertice* const a, const struct vertice* const b, const struct vertice* const c, float a_coord, float b_coord, float c_coord, vec4 (*fs)(const struct vertice* const, const uniforms), const uniforms f_uni) {
+unsigned char shade_clip_plane_augment(const struct vertex* const a, const struct vertex* const b, const struct vertex* const c, float a_coord, float b_coord, float c_coord, vec4 (*fs)(const struct vertex* const, const uniforms), const uniforms f_uni) {
 	float ratio_ac = a_coord / (a_coord - c_coord);
 	float ratio_bc = b_coord / (b_coord - c_coord);
-	struct vertice seg1;
+	struct vertex seg1;
 	seg1.vec2_n = a->vec2_n;
 	seg1.vec2_a = (vec2*)malloc(seg1.vec2_n*sizeof(vec2));
 	seg1.vec3_n = a->vec3_n;
 	seg1.vec3_a = (vec3*)malloc(seg1.vec3_n*sizeof(vec3));
 	seg1.vec4_n = a->vec4_n;
 	seg1.vec4_a = (vec4*)malloc(seg1.vec4_n*sizeof(vec4));
-	struct vertice seg2;
+	struct vertex seg2;
 	seg2.vec2_n = a->vec2_n;
 	seg2.vec2_a = (vec2*)malloc(seg2.vec2_n*sizeof(vec2));
 	seg2.vec3_n = a->vec3_n;
@@ -25,24 +25,24 @@ unsigned char shade_clip_plane_augment(const struct vertice* const a, const stru
 	seg2.vec4_a = (vec4*)malloc(seg2.vec4_n*sizeof(vec4));
 	
 	// Clip a->c
-	seg1.pos = v_add(v_scale(a->pos, 1-ratio_ac), v_scale(c->pos, ratio_ac));
+	seg1.pos = v4add(v4scale(a->pos, 1-ratio_ac), v4scale(c->pos, ratio_ac));
 	for (int i = 0; i < seg1.vec2_n; i++)
-		seg1.vec2_a[i] = v_add2(v_scale2(a->vec2_a[i], 1-ratio_ac), v_scale2(c->vec2_a[i], ratio_ac));
+		seg1.vec2_a[i] = v2add(v2scale(a->vec2_a[i], 1-ratio_ac), v2scale(c->vec2_a[i], ratio_ac));
 	for (int i = 0; i < seg1.vec3_n; i++)
-		seg1.vec3_a[i] = v_add3(v_scale3(a->vec3_a[i], 1-ratio_ac), v_scale3(c->vec3_a[i], ratio_ac));
+		seg1.vec3_a[i] = v3add(v3scale(a->vec3_a[i], 1-ratio_ac), v3scale(c->vec3_a[i], ratio_ac));
 	for (int i = 0; i < seg1.vec4_n; i++)
-		seg1.vec4_a[i] = v_add(v_scale(a->vec4_a[i], 1-ratio_ac), v_scale(c->vec4_a[i], ratio_ac));
+		seg1.vec4_a[i] = v4add(v4scale(a->vec4_a[i], 1-ratio_ac), v4scale(c->vec4_a[i], ratio_ac));
 	
 	// Clip b->c
-	seg2.pos = v_add(v_scale(b->pos, 1-ratio_bc), v_scale(c->pos, ratio_bc));
+	seg2.pos = v4add(v4scale(b->pos, 1-ratio_bc), v4scale(c->pos, ratio_bc));
 	for (int i = 0; i < seg2.vec2_n; i++)
-		seg2.vec2_a[i] = v_add2(v_scale2(b->vec2_a[i], 1-ratio_bc), v_scale2(c->vec2_a[i], ratio_bc));
+		seg2.vec2_a[i] = v2add(v2scale(b->vec2_a[i], 1-ratio_bc), v2scale(c->vec2_a[i], ratio_bc));
 	for (int i = 0; i < seg2.vec3_n; i++)
-		seg2.vec3_a[i] = v_add3(v_scale3(b->vec3_a[i], 1-ratio_bc), v_scale3(c->vec3_a[i], ratio_bc));
+		seg2.vec3_a[i] = v3add(v3scale(b->vec3_a[i], 1-ratio_bc), v3scale(c->vec3_a[i], ratio_bc));
 	for (int i = 0; i < seg2.vec4_n; i++)
-		seg2.vec4_a[i] = v_add(v_scale(b->vec4_a[i], 1-ratio_bc), v_scale(c->vec4_a[i], ratio_bc));
+		seg2.vec4_a[i] = v4add(v4scale(b->vec4_a[i], 1-ratio_bc), v4scale(c->vec4_a[i], ratio_bc));
 	
-	struct vertice drawable[3] = { seg1, seg2, *c };
+	struct vertex drawable[3] = { seg1, seg2, *c };
 	shade_clip_tri(drawable, fs, f_uni);
 
 	// Free used memory
@@ -55,11 +55,11 @@ unsigned char shade_clip_plane_augment(const struct vertice* const a, const stru
 	return 1;
 }
 
-unsigned char shade_clip_plane_create(const struct vertice* const a, const struct vertice* const b, const struct vertice* const c, float a_coord, float b_coord, float c_coord, vec4 (*fs)(const struct vertice* const, const uniforms), const uniforms f_uni) {
+unsigned char shade_clip_plane_create(const struct vertex* const a, const struct vertex* const b, const struct vertex* const c, float a_coord, float b_coord, float c_coord, vec4 (*fs)(const struct vertex* const, const uniforms), const uniforms f_uni) {
 	float ratio_ab = b_coord / (b_coord - a_coord);
 	float ratio_ac = c_coord / (c_coord - a_coord);
 
-	vertice seg1;
+	vertex seg1;
 	seg1.vec2_n = a->vec2_n;
 	seg1.vec2_a = (vec2*)malloc(seg1.vec2_n*sizeof(vec2));
 	seg1.vec3_n = a->vec3_n;
@@ -67,7 +67,7 @@ unsigned char shade_clip_plane_create(const struct vertice* const a, const struc
 	seg1.vec4_n = a->vec4_n;
 	seg1.vec4_a = (vec4*)malloc(seg1.vec4_n*sizeof(vec4));
 
-	vertice seg2;
+	vertex seg2;
 	seg2.vec2_n = a->vec2_n;
 	seg2.vec2_a = (vec2*)malloc(seg2.vec2_n*sizeof(vec2));
 	seg2.vec3_n = a->vec3_n;
@@ -76,25 +76,25 @@ unsigned char shade_clip_plane_create(const struct vertice* const a, const struc
 	seg2.vec4_a = (vec4*)malloc(seg2.vec4_n*sizeof(vec4));
 
 	// Clip a->b
-	seg1.pos = v_add(v_scale(b->pos, 1-ratio_ab), v_scale(a->pos, ratio_ab));
+	seg1.pos = v4add(v4scale(b->pos, 1-ratio_ab), v4scale(a->pos, ratio_ab));
 	for (int i = 0; i < seg1.vec2_n; i++)
-		seg1.vec2_a[i] = v_add2(v_scale2(b->vec2_a[i], 1-ratio_ab), v_scale2(a->vec2_a[i], ratio_ab));
+		seg1.vec2_a[i] = v2add(v2scale(b->vec2_a[i], 1-ratio_ab), v2scale(a->vec2_a[i], ratio_ab));
 	for (int i = 0; i < seg1.vec3_n; i++)
-		seg1.vec3_a[i] = v_add3(v_scale3(b->vec3_a[i], 1-ratio_ab), v_scale3(a->vec3_a[i], ratio_ab));
+		seg1.vec3_a[i] = v3add(v3scale(b->vec3_a[i], 1-ratio_ab), v3scale(a->vec3_a[i], ratio_ab));
 	for (int i = 0; i < seg1.vec4_n; i++)
-		seg1.vec4_a[i] = v_add(v_scale(b->vec4_a[i], 1-ratio_ab), v_scale(a->vec4_a[i], ratio_ab));
+		seg1.vec4_a[i] = v4add(v4scale(b->vec4_a[i], 1-ratio_ab), v4scale(a->vec4_a[i], ratio_ab));
 
-	struct vertice drawable[3] = { seg1, *b, *c };
+	struct vertex drawable[3] = { seg1, *b, *c };
 	shade_clip_tri(drawable, fs, f_uni);
 
 	// Clip a->c
-	seg2.pos = v_add(v_scale(c->pos, 1-ratio_ac), v_scale(a->pos, ratio_ac));
+	seg2.pos = v4add(v4scale(c->pos, 1-ratio_ac), v4scale(a->pos, ratio_ac));
 	for (int i = 0; i < seg2.vec2_n; i++)
-		seg2.vec2_a[i] = v_add2(v_scale2(c->vec2_a[i], 1-ratio_ac), v_scale2(a->vec2_a[i], ratio_ac));
+		seg2.vec2_a[i] = v2add(v2scale(c->vec2_a[i], 1-ratio_ac), v2scale(a->vec2_a[i], ratio_ac));
 	for (int i = 0; i < seg2.vec3_n; i++)
-		seg2.vec3_a[i] = v_add3(v_scale3(c->vec3_a[i], 1-ratio_ac), v_scale3(a->vec3_a[i], ratio_ac));
+		seg2.vec3_a[i] = v3add(v3scale(c->vec3_a[i], 1-ratio_ac), v3scale(a->vec3_a[i], ratio_ac));
 	for (int i = 0; i < seg2.vec4_n; i++)
-		seg2.vec4_a[i] = v_add(v_scale(c->vec4_a[i], 1-ratio_ac), v_scale(a->vec4_a[i], ratio_ac));
+		seg2.vec4_a[i] = v4add(v4scale(c->vec4_a[i], 1-ratio_ac), v4scale(a->vec4_a[i], ratio_ac));
 	
 	drawable[1] = *c;
 	drawable[2] = seg2;
@@ -110,7 +110,7 @@ unsigned char shade_clip_plane_create(const struct vertice* const a, const struc
 	return 1;
 }
 
-unsigned char shade_clip_plane(const struct vertice* const a, const struct vertice* const b, const struct vertice* const c, float a_coord, float b_coord, float c_coord, vec4 (*fs)(const struct vertice* const, const uniforms), const uniforms f_uni) {
+unsigned char shade_clip_plane(const struct vertex* const a, const struct vertex* const b, const struct vertex* const c, float a_coord, float b_coord, float c_coord, vec4 (*fs)(const struct vertex* const, const uniforms), const uniforms f_uni) {
 	if (a_coord < -THRESHOLD && b_coord < -THRESHOLD && c_coord < -THRESHOLD)
 		return 1; // Reject triangle, all points are outside clipping plane
 	if (a_coord >= -THRESHOLD && b_coord >= -THRESHOLD && c_coord >= -THRESHOLD)
@@ -131,8 +131,7 @@ unsigned char shade_clip_plane(const struct vertice* const a, const struct verti
 	return 0;
 }
 
-void shade_clip_tri(const struct vertice* const args, vec4 (*fs)(const struct vertice* const, const uniforms), const uniforms f_uni) {
-	int out = 0;
+void shade_clip_tri(const struct vertex* const args, vec4 (*fs)(const struct vertex* const, const uniforms), const uniforms f_uni) {
 	if (shade_clip_plane(args, args + 1, args + 2, args[0].pos.w + args[0].pos.x, args[1].pos.w + args[1].pos.x, args[2].pos.w + args[2].pos.x, fs, f_uni))
 		return; // Left
 	if (shade_clip_plane(args, args + 1, args + 2, args[0].pos.w - args[0].pos.x, args[1].pos.w - args[1].pos.x, args[2].pos.w - args[2].pos.x, fs, f_uni))
@@ -154,15 +153,21 @@ void shade_clip_tri(const struct vertice* const args, vec4 (*fs)(const struct ve
 	shade_triangle(args, fs, f_uni);
 }
 
-void draw(const struct vertice* const args, vertice (*vs)(const struct vertice* const, const uniforms), const uniforms v_uni, vec4 (*fs)(const struct vertice* const, const uniforms), const uniforms f_uni) {
-	struct vertice a = vs(args+0, v_uni);
-	struct vertice b = vs(args+1, v_uni);
-	struct vertice c = vs(args+2, v_uni);
+void draw(const struct vertex* const args, vertex (*vs)(const struct vertex* const, const uniforms), const uniforms v_uni, vec4 (*fs)(const struct vertex* const, const uniforms), const uniforms f_uni) {
+	struct vertex a = vs(args+0, v_uni);
+	struct vertex b = vs(args+1, v_uni);
+	struct vertex c = vs(args+2, v_uni);
 
-	struct vertice trans[3] = { a, b, c };
+	struct vertex trans[3] = { a, b, c };
 	shade_clip_tri(trans, fs, f_uni);
 
 	free(a.vec2_a);
 	free(a.vec3_a);
 	free(a.vec4_a);
+	free(b.vec2_a);
+	free(b.vec3_a);
+	free(b.vec4_a);
+	free(c.vec2_a);
+	free(c.vec3_a);
+	free(c.vec4_a);
 }

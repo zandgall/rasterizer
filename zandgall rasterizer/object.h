@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "vertice.h"
 #include "clipping.h"
 
 typedef struct face {
@@ -138,11 +137,8 @@ object* load_obj(const char* filepath) {
     return out;
 }
 
-void draw_object(const object* const obj, vertice (*vs)(const struct vertice* const, const uniforms), const uniforms v_uni, vec4(*fs)(const struct vertice* const, const uniforms), const uniforms f_uni) {
-    vertice verts[3]; 
-    verts[0].pos.w = 1;
-    verts[1].pos.w = 1;
-    verts[2].pos.w = 1;
+void draw_object(const object* const obj, vertex (*vs)(const struct vertex* const, const uniforms), const uniforms v_uni, vec4(*fs)(const struct vertex* const, const uniforms), const uniforms f_uni) {
+    vertex verts[3]; 
 
     verts[0].vec4_n = 0;
     verts[0].vec4_a = NULL;
@@ -192,4 +188,11 @@ void draw_object(const object* const obj, vertice (*vs)(const struct vertice* co
 
         draw(verts, vs, v_uni, fs, f_uni);
     }
+
+    free(verts[0].vec2_a);
+    free(verts[0].vec3_a);
+    free(verts[1].vec2_a);
+    free(verts[1].vec3_a);
+    free(verts[2].vec2_a);
+    free(verts[2].vec3_a);
 }

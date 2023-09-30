@@ -15,7 +15,7 @@ typedef struct vec2 {
     float x, y;
 } vec2;
 
-typedef struct vertice {
+typedef struct vertex {
     vec4 pos;
     vec4 *vec4_a;
     unsigned char vec4_n;
@@ -23,61 +23,56 @@ typedef struct vertice {
     unsigned char vec3_n;
     vec2 *vec2_a;
     unsigned char vec2_n;
-} vertice;
+} vertex;
 
-vec4 v_add(const vec4 a, const vec4 b) {
+// Basic vector operations
+vec4 v4add(const vec4 a, const vec4 b) {
     return (vec4) { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
 }
-vec3 v_add3(const vec3 a, const vec3 b) {
+vec3 v3add(const vec3 a, const vec3 b) {
     return (vec3) { a.x + b.x, a.y + b.y, a.z + b.z };
 }
-vec2 v_add2(const vec2 a, const vec2 b) {
+vec2 v2add(const vec2 a, const vec2 b) {
     return (vec2) { a.x + b.x, a.y + b.y };
 }
 
-vec4 v_mult(const vec4 a, const vec4 b) {
-    return (vec4) { a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w };
-}
-vec3 v_mult3(const vec3 a, const vec3 b) {
-    return (vec3) { a.x * b.x, a.y * b.y, a.z * b.z };
-}
-vec2 v_mult2(const vec2 a, const vec2 b) {
-    return (vec2) { a.x * b.x, a.y * b.y };
-}
-
-vec4 v_scale(const vec4 a, const float s) {
+vec4 v4scale(const vec4 a, const float s) {
     return (vec4) { a.x * s, a.y * s, a.z * s, a.w * s };
 }
-vec3 v_scale3(const vec3 a, const float s) {
+vec3 v3scale(const vec3 a, const float s) {
     return (vec3) { a.x * s, a.y * s, a.z * s };
 }
-vec2 v_scale2(const vec2 a, const float s) {
+vec2 v2scale(const vec2 a, const float s) {
     return (vec2) { a.x * s, a.y * s };
 }
 
-float v_dot(const vec3 a, const vec3 b) {
+// Vector special operations
+
+float v3dot(const vec3 a, const vec3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-vec3 v_cross(const vec3 a, const vec3 b) {
+vec3 v3cross(const vec3 a, const vec3 b) {
     return (vec3){a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x};
 }
 
-vec3 v_normalize(const vec3 a) {
-    return v_scale3(a, 1.f/sqrtf(a.x*a.x + a.y*a.y + a.z*a.z));
+vec3 v3normalize(const vec3 a) {
+    return v3scale(a, 1.f/sqrtf(a.x*a.x + a.y*a.y + a.z*a.z));
 }
 
-vec3 v_reflect(const vec3 a, const vec3 n) {
-    return v_add3(a, v_scale3(n, -2*v_dot(a, n))); // a - 2(a dot n)n
+vec3 v3reflect(const vec3 a, const vec3 n) {
+    return v3add(a, v3scale(n, -2*v3dot(a, n))); // a - 2(a dot n)n
 }
 
 // https://registry.khronos.org/OpenGL-Refpages/gl4/html/refract.xhtml
-vec3 v_refract(const vec3 a, const vec3 n, const float eta) {
-    float k = 1.f - eta * eta * (1.f - v_dot(n, a)*v_dot(n, a));
+vec3 v3refract(const vec3 a, const vec3 n, const float eta) {
+    float k = 1.f - eta * eta * (1.f - v3dot(n, a)*v3dot(n, a));
     if(k < 0)
         return (vec3){0,0,0};
-    else return v_add3(v_scale3(a, eta), v_scale3(n, eta * v_dot(n, a)+sqrtf(k)));
+    else return v3add(v3scale(a, eta), v3scale(n, eta * v3dot(n, a)+sqrtf(k)));
 }
+
+// Matrix section
 
 typedef struct matrix {
     struct vec4 a, b, c, d;
@@ -88,12 +83,12 @@ struct matrix identity() {
 };
 
 vec3 transform3x3(const matrix a, const vec3 b) {
-    //a.a*b.x + a.b*b.y + a.c*b.z + a.d*b.w
-    vec4 out4 = v_add(v_add(v_scale(a.a, b.x), v_scale(a.b, b.y)), v_scale(a.c, b.z));
+    vec4 out4 = v4add(v4add(v4scale(a.a, b.x), v4scale(a.b, b.y)), v4scale(a.c, b.z));
     vec3 out = (vec3){ out4.x, out4.y, out4.z };
     return out;
 }
 
+// Used for normals correcting when shading
 matrix inverseTranspose3x3(const matrix* const a) {
     matrix out = identity();
     float determinant = 
@@ -114,18 +109,8 @@ matrix inverseTranspose3x3(const matrix* const a) {
     return out;
 }
 
-// vertice transform(const matrix a, const vertice b) {
-//     //a.a*b.x + a.b*b.y + a.c*b.z + a.d*b.w
-//     vertice out;
-//     out.pos = v_add(v_add(v_add(v_scale(a.a, b.pos.x), v_scale(a.b, b.pos.y)), v_scale(a.c, b.pos.z)), v_scale(a.d, b.pos.w));
-//     out.uv = b.uv;
-//     out.norm = transform3x3(inverseTranspose3x3(&a), b.norm);
-//     return out;
-// }
-
 vec4 transform(const matrix a, const vec4 b) {
-    //a.a*b.x + a.b*b.y + a.c*b.z + a.d*b.w
-    return v_add(v_add(v_add(v_scale(a.a, b.x), v_scale(a.b, b.y)), v_scale(a.c, b.z)), v_scale(a.d, b.w));
+    return v4add(v4add(v4add(v4scale(a.a, b.x), v4scale(a.b, b.y)), v4scale(a.c, b.z)), v4scale(a.d, b.w));
 }
 
 void m_translate(struct matrix* m, const vec3 translation) {
@@ -135,16 +120,16 @@ void m_translate(struct matrix* m, const vec3 translation) {
 }
 
 void m_scale(matrix* m, const vec3 scalar) {
-    m->a = v_scale(m->a, scalar.x);
-    m->b = v_scale(m->b, scalar.y);
-    m->c = v_scale(m->c, scalar.z);
+    m->a = v4scale(m->a, scalar.x);
+    m->b = v4scale(m->b, scalar.y);
+    m->c = v4scale(m->c, scalar.z);
 }
 
 // Translated from https://github.com/g-truc/glm/blob/master/glm/ext/matrix_transform.inl
 void m_rotate(matrix* m, const float angle, const vec3 axis) {
     const float c = cos(angle);
     const float s = sin(angle);
-    struct vec3 temp = v_scale3(axis, 1 - c);
+    struct vec3 temp = v3scale(axis, 1 - c);
     struct matrix r;
     r.a.x = c + temp.x * axis.x;
     r.b.x = temp.x * axis.y + s * axis.z;
@@ -159,17 +144,17 @@ void m_rotate(matrix* m, const float angle, const vec3 axis) {
     r.c.z = c + temp.z * axis.z;
 
     struct matrix t = *m;
-    m->a = v_add(v_add(v_scale(t.a, r.a.x), v_scale(t.b, r.a.y)), v_scale(t.c, r.a.z));
-    m->b = v_add(v_add(v_scale(t.a, r.b.x), v_scale(t.b, r.b.y)), v_scale(t.c, r.b.z));
-    m->c = v_add(v_add(v_scale(t.a, r.c.x), v_scale(t.b, r.c.y)), v_scale(t.c, r.c.z));
+    m->a = v4add(v4add(v4scale(t.a, r.a.x), v4scale(t.b, r.a.y)), v4scale(t.c, r.a.z));
+    m->b = v4add(v4add(v4scale(t.a, r.b.x), v4scale(t.b, r.b.y)), v4scale(t.c, r.b.z));
+    m->c = v4add(v4add(v4scale(t.a, r.c.x), v4scale(t.b, r.c.y)), v4scale(t.c, r.c.z));
 };
 
 matrix m_mult(const matrix a, const matrix b) {
     matrix out = identity();
-    out.a = v_add(v_scale(a.a, b.a.x), v_add(v_scale(a.b, b.a.y), v_add(v_scale(a.c, b.a.z), v_scale(a.d, b.a.w))));
-    out.b = v_add(v_scale(a.a, b.b.x), v_add(v_scale(a.b, b.b.y), v_add(v_scale(a.c, b.b.z), v_scale(a.d, b.b.w))));
-    out.c = v_add(v_scale(a.a, b.c.x), v_add(v_scale(a.b, b.c.y), v_add(v_scale(a.c, b.c.z), v_scale(a.d, b.c.w))));
-    out.d = v_add(v_scale(a.a, b.d.x), v_add(v_scale(a.b, b.d.y), v_add(v_scale(a.c, b.d.z), v_scale(a.d, b.d.w))));
+    out.a = transform(a, b.a);
+    out.b = transform(a, b.b);
+    out.c = transform(a, b.c);
+    out.d = transform(a, b.d);
     return out;
 }
 
@@ -179,6 +164,7 @@ matrix transpose(const matrix* const a) {
     out.b = (vec4){a->a.y, a->b.y, a->c.y, a->d.y};
     out.c = (vec4){a->a.z, a->b.z, a->c.z, a->d.z};
     out.d = (vec4){a->a.w, a->b.w, a->c.w, a->d.w};
+    return out;
 }
 
 matrix perspective(float FOV, float aspect, float znear, float zfar) {
@@ -193,44 +179,25 @@ matrix perspective(float FOV, float aspect, float znear, float zfar) {
     return out;
 }
 
-matrix lookAt(const vec3 eye, const vec3 center, const vec3 up) {
-    vec3 f = v_normalize(v_add3(center, v_scale3(eye, -1)));
-    vec3 s = v_normalize(v_cross(f, up));
-    vec3 u = v_cross(s,f);
-
+matrix camera(const vec3 pos, const vec3 forward, const vec3 up) { // "up" will most certainly be <0, 1, 0>
+    vec3 f = v3normalize(v3scale(forward, -1));
+    vec3 s = v3normalize(v3cross(up, f));
+    vec3 u = v3cross(f, s);
     matrix out = identity();
+    
     out.a.x = s.x;
     out.b.x = s.y;
     out.c.x = s.z;
     out.a.y = u.x;
     out.b.y = u.y;
     out.c.y = u.z;
-    out.a.z =-f.x;
-    out.b.z =-f.y;
-    out.c.z =-f.z;
-    out.d.x =center.x+v_dot(s, eye);
-    out.d.y =center.y+v_dot(u, eye);
-    out.d.z =center.z+v_dot(f, eye);
-    return out;
-}
-
-matrix orbitView(const vec3 dir, const float dist, const vec3 center, const vec3 up) {
-    vec3 f = v_normalize(v_scale3(dir, -1));
-    vec3 s = v_normalize(v_cross(f, up));
-    vec3 u = v_cross(s, f);
-    matrix out = identity();
-    out.a.x = s.x;
-    out.b.x = s.y;
-    out.c.x = s.z;
-    out.a.y = u.x;
-    out.b.y = u.y;
-    out.c.y = u.z;
-    out.a.z =-f.x;
-    out.b.z =-f.y;
-    out.c.z =-f.z;
-    vec3 d = center;
-    out.d.x = d.x;
-    out.d.y = d.y;
-    out.d.z = d.z;
+    out.a.z = f.x;
+    out.b.z = f.y;
+    out.c.z = f.z;
+    
+    out.d.x =-v3dot(s, pos);
+    out.d.y =-v3dot(u, pos);
+    out.d.z =-v3dot(f, pos);
+    
     return out;
 }

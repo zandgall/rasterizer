@@ -3,8 +3,6 @@
 #include <SDL2/SDL.h>
 #undef main
 #include "conf.h"
-#include "shading.h"
-#include "clipping.h"
 #include "object.h"
 
 SDL_Renderer* rend;
@@ -15,14 +13,15 @@ float depth_buff[WIDTH*HEIGHT];
 
 void draw_func(int x, int y, float z, vec4 in) {
     // If the current pixel (x, y) was drawn this frame, and is closer to the camera, don't draw over it
-    if(y <= 0 || y > HEIGHT || x < 0 || x >= WIDTH)
+    if(y < 0 || y >= HEIGHT || x < 0 || x >= WIDTH)
         return;
-    if(frame_buff[(HEIGHT-y) * WIDTH + x] == frame && depth_buff[(HEIGHT-y) * WIDTH + x] < z)
+    if(frame_buff[y * WIDTH + x] == frame && depth_buff[y * WIDTH + x] < z)
         return;
-    Uint32* targ = (Uint32*)((Uint8*)surf->pixels + (HEIGHT-y) * surf->pitch + x * surf->format->BytesPerPixel);
+    // We use (HEIGHT - 1 - y) to flip 0 -> HEIGHT-1 to HEIGHT-1 -> 0
+    Uint32* targ = (Uint32*)((Uint8*)surf->pixels + (HEIGHT-1-y) * surf->pitch + x * surf->format->BytesPerPixel);
     *targ = (((Uint8)(fminf(fmaxf(in.x, 0), 1)*255)) << 16) + (((Uint8)(fminf(fmaxf(in.y, 0), 1)*255)) << 8) + (Uint8)(fminf(fmaxf(in.z, 0), 1)*255) + (255<<24);
-    frame_buff[(HEIGHT-y) * WIDTH + x] = frame;
-    depth_buff[(HEIGHT-y) * WIDTH + x] = z;
+    frame_buff[y * WIDTH + x] = frame;
+    depth_buff[y * WIDTH + x] = z;
 }
 
 int main() {
@@ -34,13 +33,6 @@ int main() {
     SDL_Event ev;
     char running = 1;
     tri_draw_func = &draw_func;
-
-    const struct SDL_FPoint verts[4] = {
-        {400, 150},
-        {200, 450},
-        {600, 450},
-        {400, 150}
-    };
 
     int c;
     stbi_set_flip_vertically_on_load(1);
@@ -115,10 +107,11 @@ int main() {
     monkey_uni.v3[3] = (vec3){1, 1, 0.9};
 
     vec3 cam_center = (vec3){0, 0, 0};
-    vec3 cam_dir = v_normalize((vec3){1, 1, 1});
+    vec3 cam_dir = v3normalize((vec3){1, 1, 1});
     float cam_dist = 5;
 
-    matrix cam = lookAt(v_scale3(cam_dir, cam_dist), (vec3){0, 0, 0}, (vec3){0, 1, 0});
+    // matrix cam = lookAt(v3scale(cam_dir, cam_dist), (vec3){0, 0, 0}, (vec3){0, 1, 0});
+    matrix cam = camera(v3add(cam_center, v3scale(cam_dir, cam_dist)), v3scale(cam_dir, -1), (vec3){0, 1, 0});
     while(running) {
         while(SDL_PollEvent(&ev)){
             if(ev.type == SDL_QUIT) {
@@ -126,49 +119,36 @@ int main() {
                 break;
             }
             if(ev.type==SDL_MOUSEMOTION && ev.motion.state & SDL_BUTTON_MMASK) {
-                vec3 f = v_scale3(v_normalize(cam_dir), -1);
-                vec3 r = v_cross(f, (vec3){0, 1, 0});
-                vec3 u = v_cross(r, f);
-                cam_center = v_add3(cam_center, v_add3(v_scale3(r, ev.motion.xrel*0.01f), v_scale3(u, -ev.motion.yrel*0.01f)));
-                cam = identity();
-                m_translate(&cam, cam_center);
-                cam = m_mult(lookAt(v_scale3(cam_dir, cam_dist), (vec3){0, 0, 0}, (vec3){0, 1, 0}), cam);
-                // cam = orbitView(cam_dir, cam_dist, cam_center, (vec3){0,1,0});
+                vec3 f = v3scale(v3normalize(cam_dir), -1);
+                vec3 r = v3cross(f, (vec3){0, 1, 0});
+                vec3 u = v3cross(r, f);
+                cam_center = v3add(cam_center, v3add(v3scale(r, -ev.motion.xrel*0.01f), v3scale(u, ev.motion.yrel*0.01f)));
+                cam = camera(v3add(cam_center, v3scale(cam_dir, cam_dist)), v3scale(cam_dir, -1), (vec3){0, 1, 0});
             } else if(ev.type == SDL_MOUSEMOTION && ev.motion.state & SDL_BUTTON_LMASK) {
                 matrix m = identity();
                 m_rotate(&m, ev.motion.xrel*0.01f, (vec3){0,1,0});
                 cam_dir = transform3x3(m, cam_dir);
                 m = identity();
-                m_rotate(&m, ev.motion.yrel*0.01f, v_cross((vec3){0, 1, 0}, cam_dir));
+                m_rotate(&m, ev.motion.yrel*0.01f, v3cross((vec3){0, 1, 0}, cam_dir));
                 cam_dir = transform3x3(m, cam_dir);
-
-                cam = identity();
-                m_translate(&cam, cam_center);
-                cam = m_mult(lookAt(v_scale3(cam_dir, cam_dist), (vec3){0, 0, 0}, (vec3){0, 1, 0}), cam);
-                // cam = lookAt(v_add3(cam_center, v_scale3(cam_dir, cam_dist)), cam_center, (vec3){0, 1, 0});
-                // cam = orbitView(cam_dir, cam_dist, cam_center, (vec3){0,1,0});
+                cam = camera(v3add(cam_center, v3scale(cam_dir, cam_dist)), v3scale(cam_dir, -1), (vec3){0, 1, 0});
             }
             if(ev.type==SDL_MOUSEWHEEL) {
                 cam_dist -= cam_dist * 0.1f*ev.wheel.preciseY;
-                cam = identity();
-                m_translate(&cam, cam_center);
-                cam = m_mult(lookAt(v_scale3(cam_dir, cam_dist), (vec3){0, 0, 0}, (vec3){0, 1, 0}), cam);
-                // cam = lookAt(v_add3(cam_center, v_scale3(cam_dir, cam_dist)), cam_center, (vec3){0, 1, 0});
-                // cam = orbitView(cam_dir, cam_dist, cam_center, (vec3){0,1,0});
+                cam = camera(v3add(cam_center, v3scale(cam_dir, cam_dist)), v3scale(cam_dir, -1), (vec3){0, 1, 0});
             }
         }
 
         SDL_FillRect(surf, NULL, 0x000000);
 
         ZG_DISABLE_CULLING = 0;
-        skybox_uni.v3[0] = v_add3(v_scale3(cam_center, -1), v_scale3(cam_dir, cam_dist));
-        monkey_uni.v3[4] = v_add3(v_scale3(cam_center, -1), v_scale3(cam_dir, cam_dist));
+        skybox_uni.v3[0] = v3add(v3scale(cam_center, 1), v3scale(cam_dir, cam_dist));
+        monkey_uni.v3[4] = v3add(v3scale(cam_center, 1), v3scale(cam_dir, cam_dist));
         monkey_uni.s = &monkey_image;
         mvp_uni.m[0] = persp;
         mvp_uni.m[1] = cam;
         mvp_uni.m[2] = tf_monkey;
         monkey_uni.f[0] = 0.1;
-        monkey_uni.f[1] = 0;
         monkey_uni.v3[2] = (vec3){0, 0.5, 1};
         draw_object(monkey, &vs_mvp, mvp_uni, &fs_monkey, monkey_uni);
         monkey_uni.s = 0;

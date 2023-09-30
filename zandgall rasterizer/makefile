@@ -1,5 +1,5 @@
-include_lib := -I/mnt/EACAB651CAB619B1/c++/_lib
-library_lib := -L/mnt/EACAB651CAB619B1/c++/_lib
+include_lib := -I/mnt/Code/c++/_lib
+library_lib := -L/mnt/Code/c++/_lib
 INCLUDES := $(include_lib)/gl/linux/include
 LIBRARY_PATHS := 
 LIBRARIES := -lSDL2 -lm
@@ -28,7 +28,7 @@ all: $(target_exec)
 release: CFLAGS += -O3
 release: $(target_exec)
 
-debug: CFLAGS += -DDEBUG -g
+debug: CFLAGS += -DDEBUG -g -Wall
 debug: $(target_exec)
 
 # prep
