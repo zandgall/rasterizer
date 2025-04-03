@@ -1,11 +1,19 @@
-/.vscode
-/zandgall rasterizer/.vscode
+/.vscode/
+/zandgall rasterizer/.vscode/
 /zandgall rasterizer/source
-/zandgall rasterizer/build
-/zandgall rasterizer checkpoint
-/zandgall rasterizer checkpoint 2
-/zandgall rasterizer opencl
+/zandgall rasterizer/build/
+/zandgall rasterizer checkpoint/
+/zandgall rasterizer checkpoint 2/
+/zandgall rasterizer opencl/
+/zandgall rasterizer terminal/
+/zandgall rasterizer visualizer/
 /OpenCL/build
 /OpenCL/source
 /opencl rasterizer/build
 /opencl rasterizer/source
+/python numpy zandgall rasterizer/
+/python numpy zandgall rasterizer failed/
+
+/python zandgall rasterizer/__pycache__/
+/python zandgall rasterizer/.mypy_cache/
+/python zandgall rasterizer/build/
